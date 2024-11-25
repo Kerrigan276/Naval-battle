@@ -1,0 +1,142 @@
+import random
+
+
+class Ship:
+    def __init__(self, coordinates):
+        self.coordinates = coordinates
+        self.hits = 0
+
+    def hit(self, coordinate):
+        if coordinate in self.coordinates:
+            self.hits += 1
+            return True
+        return False
+
+    def is_sunk(self):
+        return self.hits == len(self.coordinates)
+
+
+class Board:
+    SIZE = 6
+
+    def __init__(self):
+        self.grid = [['О' for _ in range(Board.SIZE)] for _ in range(Board.SIZE)]
+        self.ships = []
+        self.shots_taken = set()
+
+    def place_ship(self, ship):
+        for coord in ship.coordinates:
+            self.grid[coord[0]][coord[1]] = '■'
+        self.ships.append(ship)
+
+    def receive_shot(self, coordinate):
+        if coordinate in self.shots_taken:
+            raise Exception("Вы уже стреляли в эту клетку!")
+        self.shots_taken.add(coordinate)
+
+        hit = False
+        for ship in self.ships:
+            if ship.hit(coordinate):
+                hit = True
+                self.grid[coordinate[0]][coordinate[1]] = 'X'
+                if ship.is_sunk():
+                    print("Корабль потоплен!")
+                return True
+
+        self.grid[coordinate[0]][coordinate[1]] = 'T'
+        return False
+
+    def all_ships_sunk(self):
+        return all(ship.is_sunk() for ship in self.ships)
+
+    def display(self):
+        print("   | " + " | ".join(str(i + 1) for i in range(Board.SIZE)) + " |")
+        for i, row in enumerate(self.grid):
+            print(f"{i + 1} | " + " | ".join(row) + " |")
+
+
+def generate_random_coordinates(length):
+    horizontal = random.choice([True, False])
+    if horizontal:
+        row = random.randint(0, Board.SIZE - 1)
+        col = random.randint(0, Board.SIZE - length)
+        return [(row, col + i) for i in range(length)]
+    else:
+        row = random.randint(0, Board.SIZE - length)
+        col = random.randint(0, Board.SIZE - 1)
+        return [(row + i, col) for i in range(length)]
+
+
+def can_place_ship(board, ship_coordinates):
+    for coord in ship_coordinates:
+        if board.grid[coord[0]][coord[1]] != 'О':
+            return False
+        # Check surrounding cells
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if (0 <= coord[0] + i < Board.SIZE and
+                        0 <= coord[1] + j < Board.SIZE):
+                    if (i == 0 and j == 0):
+                        continue  # Skip the cell itself
+                    if board.grid[coord[0] + i][coord[1] + j] != 'О':
+                        return False
+    return True
+
+
+def setup_board(board):
+    ships_to_place = [
+        Ship(generate_random_coordinates(3)),  # 1 x 3
+        Ship(generate_random_coordinates(2)),  # 1 x 2
+        Ship(generate_random_coordinates(2)),  # 1 x 2
+        Ship(generate_random_coordinates(1)),  # 4 x 1
+        Ship(generate_random_coordinates(1)),
+        Ship(generate_random_coordinates(1)),
+        Ship(generate_random_coordinates(1)),
+    ]
+
+    for ship in ships_to_place:
+        while not can_place_ship(board, ship.coordinates):
+            ship = Ship(generate_random_coordinates(len(ship.coordinates)))
+        board.place_ship(ship)
+
+
+def main():
+    player_board = Board()
+    computer_board = Board()
+    setup_board(player_board)
+    setup_board(computer_board)
+
+    while True:
+        print("\nВаше поле:")
+        player_board.display()
+        print("\nПоле компьютера:")
+        computer_board.display()
+
+        try:
+            x = int(input("Введите номер строки (1-6): ")) - 1
+            y = int(input("Введите номер столбца (1-6): ")) - 1
+            if not (0 <= x < Board.SIZE and 0 <= y < Board.SIZE):
+                print("Неверные координаты, попробуйте еще раз.")
+                continue
+
+            player_board.receive_shot((x, y))
+
+            if computer_board.receive_shot((random.randint(0, 5), random.randint(0, 5))):
+                print("Компьютер попал!")
+            else:
+                print("Компьютер промахнулся!")
+
+            if player_board.all_ships_sunk():
+                print("Вы проиграли!")
+                break
+
+            if computer_board.all_ships_sunk():
+                print("Вы победили!")
+                break
+
+        except Exception as e:
+            print(e)
+
+
+if __name__ == "__main__":
+    main()
